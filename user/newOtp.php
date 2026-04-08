@@ -55,11 +55,42 @@ if (isset($_POST['resend_otp'])) {
         $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
         $mail->Port       = 587;
 
-        $mail->setFrom('msyaifulloh2024@gmail.com', 'share doc');
+        $mail->setFrom('msyaifulloh2024@gmail.com', 'ShareDoc Security');
         $mail->addAddress($email);
         $mail->isHTML(true);
-        $mail->Subject = 'Kirim Ulang: Kode OTP Registrasi - ShareDoc';
-        $mail->Body    = "Ini adalah kode OTP baru kamu: <b style='font-size:20px; color:#1e40af;'>$new_otp</b>.<br>Berlaku selama 15 minutes.";
+        $mail->Subject = '[ShareDoc] Permintaan Kirim Ulang Kode OTP';
+        
+        // Body Email HTML Formal untuk Resend OTP
+        $mail->Body = "
+        <div style='font-family: Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f3f4f6; border-radius: 10px;'>
+            <div style='text-align: center; margin-bottom: 25px; margin-top: 10px;'>
+                <h2 style='color: #1e40af; margin: 0; font-size: 28px; font-weight: 800; letter-spacing: 1px;'>ShareDoc</h2>
+            </div>
+            <div style='background-color: #ffffff; padding: 40px 30px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: 5px solid #1e40af;'>
+                <h3 style='color: #1f2937; font-size: 20px; margin-top: 0; margin-bottom: 20px; text-align: center;'>Kode OTP Baru Anda</h3>
+                <p style='color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 25px;'>
+                    Yth. Pengguna,<br><br>
+                    Sesuai dengan permintaan Anda, kami telah membuatkan Kode OTP (<i>One-Time Password</i>) yang baru. Silakan masukkan kode di bawah ini pada halaman verifikasi:
+                </p>
+                <div style='text-align: center; margin: 35px 0;'>
+                    <span style='display: inline-block; padding: 15px 40px; font-size: 32px; font-weight: bold; color: #1e40af; background-color: #eff6ff; border: 2px dashed #93c5fd; border-radius: 8px; letter-spacing: 8px;'>
+                        $new_otp
+                    </span>
+                </div>
+                <p style='color: #dc2626; font-size: 13px; text-align: center; margin-bottom: 30px;'>
+                    <em>Penting: Kode OTP ini bersifat rahasia dan hanya berlaku selama <strong>15 menit</strong> sejak email ini dikirim.</em>
+                </p>
+                <hr style='border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;'>
+                <p style='color: #6b7280; font-size: 12px; line-height: 1.5; text-align: center;'>
+                    Jika Anda tidak merasa meminta pengiriman ulang kode ini, mohon abaikan email ini atau pastikan akun Anda aman.<br>
+                    <strong>Jangan pernah membagikan kode ini kepada siapapun</strong>.
+                </p>
+            </div>
+            <div style='text-align: center; margin-top: 20px; color: #9ca3af; font-size: 12px;'>
+                &copy; " . date('Y') . " ShareDoc. All rights reserved.
+            </div>
+        </div>
+        ";
 
         $mail->send();
         $msg = "OTP baru telah dikirim ke email kamu.";
