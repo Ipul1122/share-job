@@ -1,6 +1,6 @@
 <?php
 session_start();
-require '../config/config.php'; //
+require '../config/config.php'; 
 
 // Proteksi Halaman
 if (!isset($_SESSION['user_id'])) {
@@ -9,52 +9,57 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $sender_id = $_SESSION['user_id'];
-$msg = '';
-$msg_type = '';
 
-// Ambil daftar user lain
-$users_query = mysqli_query($conn, "SELECT id, email FROM users WHERE id != '$sender_id' AND is_verified = 1");
-
-// Logika Upload & Share
+// -- LOGIKA UNTUK AJAX UPLOAD (Merespon dengan JSON) --
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $target_users = $_POST['target_users'] ?? [];
     
     if (empty($target_users)) {
-        $msg = "Pilih minimal satu user tujuan!";
-        $msg_type = "red";
-    } elseif (!isset($_FILES['dokumen']['name'][0]) || empty($_FILES['dokumen']['name'][0])) {
-        $msg = "Pilih file yang ingin dibagikan!";
-        $msg_type = "red";
-    } else {
-        $upload_dir = '../uploads/';
-        if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
+        echo json_encode(['status' => 'error', 'message' => 'Pilih minimal satu user tujuan!']);
+        exit();
+    } 
+    
+    if (!isset($_FILES['dokumen']['name'][0]) || empty($_FILES['dokumen']['name'][0])) {
+        echo json_encode(['status' => 'error', 'message' => 'Pilih file yang ingin dibagikan!']);
+        exit();
+    } 
 
-        $success_count = 0;
-        $file_count = count($_FILES['dokumen']['name']);
+    $upload_dir = '../uploads/';
+    if (!is_dir($upload_dir)) mkdir($upload_dir, 0777, true);
 
-        for ($i = 0; $i < $file_count; $i++) {
-            $file_name = $_FILES['dokumen']['name'][$i];
-            $tmp_name  = $_FILES['dokumen']['tmp_name'][$i];
-            
-            if ($_FILES['dokumen']['error'][$i] === 0) {
-                $unique_name = time() . "_" . preg_replace("/[^a-zA-Z0-9.]/", "_", $file_name);
-                $destination = $upload_dir . $unique_name;
+    $success_count = 0;
+    $file_count = count($_FILES['dokumen']['name']);
 
-                if (move_uploaded_file($tmp_name, $destination)) {
-                    foreach ($target_users as $receiver_id) {
-                        $rid = mysqli_real_escape_string($conn, $receiver_id);
-                        $fn = mysqli_real_escape_string($conn, $file_name);
-                        $dp = mysqli_real_escape_string($conn, $destination);
-                        mysqli_query($conn, "INSERT INTO shared_files (sender_id, receiver_id, file_name, file_path) VALUES ('$sender_id', '$rid', '$fn', '$dp')");
-                    }
-                    $success_count++;
+    for ($i = 0; $i < $file_count; $i++) {
+        $file_name = $_FILES['dokumen']['name'][$i];
+        $tmp_name  = $_FILES['dokumen']['tmp_name'][$i];
+        
+        if ($_FILES['dokumen']['error'][$i] === 0) {
+            $unique_name = time() . "_" . preg_replace("/[^a-zA-Z0-9.]/", "_", $file_name);
+            $destination = $upload_dir . $unique_name;
+
+            if (move_uploaded_file($tmp_name, $destination)) {
+                foreach ($target_users as $receiver_id) {
+                    $rid = mysqli_real_escape_string($conn, $receiver_id);
+                    $fn = mysqli_real_escape_string($conn, $file_name);
+                    $dp = mysqli_real_escape_string($conn, $destination);
+                    mysqli_query($conn, "INSERT INTO shared_files (sender_id, receiver_id, file_name, file_path) VALUES ('$sender_id', '$rid', '$fn', '$dp')");
                 }
+                $success_count++;
             }
         }
-        $msg = $success_count > 0 ? "$success_count file berhasil dibagikan!" : "Gagal mengupload file.";
-        $msg_type = $success_count > 0 ? "green" : "red";
     }
+
+    if ($success_count > 0) {
+        echo json_encode(['status' => 'success', 'message' => "$success_count file berhasil dibagikan!"]);
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Gagal mengupload file ke server.']);
+    }
+    exit(); // Hentikan script di sini agar HTML tidak ikut terkirim di response AJAX
 }
+
+// Ambil daftar user lain untuk tampilan HTML
+$users_query = mysqli_query($conn, "SELECT id, email FROM users WHERE id != '$sender_id' AND is_verified = 1");
 ?>
 
 <!DOCTYPE html>
@@ -64,6 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Share Document - ShareDoc</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gray-100 font-sans antialiased text-gray-800">
     
@@ -78,13 +84,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                         <p class="text-blue-600 text-sm">Kirim file ke banyak user sekaligus dengan mudah.</p>
                     </div>
 
-                    <?php if($msg): ?>
-                        <div class="m-6 p-4 rounded-lg text-center font-medium <?php echo $msg_type == 'green' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'; ?>">
-                            <?php echo $msg; ?>
-                        </div>
-                    <?php endif; ?>
-
-                    <form action="" method="POST" enctype="multipart/form-data" class="p-6 space-y-8">
+                    <form id="uploadForm" enctype="multipart/form-data" class="p-6 space-y-8">
                         
                         <div>
                             <div class="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
@@ -123,8 +123,9 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                             </div>
                         </div>
 
-                        <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform active:scale-95 transition duration-200">
-                            🚀 Bagikan Sekarang
+                        <button type="submit" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-4 px-6 rounded-xl shadow-lg transform active:scale-95 transition duration-200 flex justify-center items-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            Bagikan Sekarang
                         </button>
                     </form>
                 </div>
@@ -133,7 +134,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </div>
 
     <script>
-        // Pencarian User
+        // --- 1. Fitur Pencarian & Pilih Semua (Sama seperti sebelumnya) ---
         document.getElementById('userSearch').addEventListener('input', function(e) {
             const filter = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('.user-card');
@@ -143,7 +144,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             });
         });
 
-        // Pilih Semua
         document.getElementById('selectAll').addEventListener('click', function() {
             const checkboxes = document.querySelectorAll('.user-checkbox');
             const allChecked = Array.from(checkboxes).every(cb => cb.checked);
@@ -151,7 +151,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             this.textContent = !allChecked ? 'Batal Pilih Semua' : 'Pilih Semua';
         });
 
-        // Preview Nama File
         const fileInput = document.getElementById('fileInput');
         const fileListNames = document.getElementById('fileListNames');
         const selectedFilesDiv = document.getElementById('selectedFiles');
@@ -170,13 +169,123 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             }
         });
 
-        // Dropzone Highlight
         const dropZone = document.getElementById('dropZone');
         ['dragenter', 'dragover'].forEach(name => {
             dropZone.addEventListener(name, () => dropZone.classList.add('bg-blue-200', 'border-blue-700'), false);
         });
         ['dragleave', 'drop'].forEach(name => {
             dropZone.addEventListener(name, () => dropZone.classList.remove('bg-blue-200', 'border-blue-700'), false);
+        });
+
+        // --- 2. LOGIKA AJAX UPLOAD DENGAN SWEETALERT PROGRESS BAR ---
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault(); // Mencegah form reload bawaan browser
+
+            const formData = new FormData(this);
+            const selectedUsers = formData.getAll('target_users[]');
+            const files = fileInput.files;
+
+            // Validasi di sisi frontend
+            if (selectedUsers.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Silakan pilih minimal satu user tujuan!' });
+                return;
+            }
+            if (files.length === 0) {
+                Swal.fire({ icon: 'warning', title: 'Oops...', text: 'Pilih dokumen yang ingin diunggah!' });
+                return;
+            }
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '', true); // Kirim ke file yang sama (shareDoc.php)
+
+            // Setup Waktu Awal
+            let startTime = new Date().getTime();
+
+            // Memunculkan SweetAlert dengan Progress
+            Swal.fire({
+                title: 'Sedang Mengunggah...',
+                html: `
+                    <div class="w-full bg-gray-200 rounded-full h-4 mt-2 mb-2">
+                        <div id="swalProgressBar" class="bg-blue-600 h-4 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <p id="swalProgressText" class="text-sm font-semibold">0%</p>
+                    <p id="swalTimeText" class="text-xs text-gray-500 mt-1">Menghitung perkiraan waktu...</p>
+                `,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            // Pantau Progress Upload (Kalkulasi Waktu & Persentase)
+            xhr.upload.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    let percentComplete = Math.round((event.loaded / event.total) * 100);
+                    
+                    // Kalkulasi waktu tersisa
+                    let currentTime = new Date().getTime();
+                    let elapsedTime = (currentTime - startTime) / 1000; // detik
+                    let uploadSpeed = event.loaded / elapsedTime; // byte per detik
+                    let remainingBytes = event.total - event.loaded;
+                    let remainingTime = remainingBytes / uploadSpeed; // detik
+
+                    // Format teks waktu tersisa
+                    let remainingText = '';
+                    if (remainingTime > 60) {
+                        let m = Math.floor(remainingTime / 60);
+                        let s = Math.round(remainingTime % 60);
+                        remainingText = `Sisa Waktu: ${m} menit ${s} detik`;
+                    } else if (remainingTime > 0) {
+                        remainingText = `Sisa Waktu: ${Math.round(remainingTime)} detik`;
+                    } else {
+                        remainingText = 'Menyelesaikan...';
+                    }
+
+                    // Update elemen di dalam SweetAlert
+                    document.getElementById('swalProgressBar').style.width = percentComplete + '%';
+                    document.getElementById('swalProgressText').innerText = percentComplete + '%';
+                    document.getElementById('swalTimeText').innerText = remainingText;
+                }
+            };
+
+            // Saat Upload Selesai dan Server Memberi Respon
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.status === 'success') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Berhasil!',
+                                text: response.message,
+                                confirmButtonColor: '#1e40af' // blue-800
+                            }).then(() => {
+                                // Reset form dan list setelah sukses
+                                document.getElementById('uploadForm').reset();
+                                document.getElementById('selectedFiles').classList.add('hidden');
+                                document.getElementById('fileListNames').innerHTML = '';
+                            });
+                        } else {
+                            Swal.fire('Gagal!', response.message, 'error');
+                        }
+                    } catch (err) {
+                        console.error(xhr.responseText);
+                        Swal.fire('Error!', 'Respon dari server tidak valid.', 'error');
+                    }
+                } else {
+                    Swal.fire('Error!', 'Terjadi kesalahan jaringan atau server mati.', 'error');
+                }
+            };
+
+            // Tangani Error Jaringan
+            xhr.onerror = function() {
+                Swal.fire('Error!', 'Koneksi ke server terputus.', 'error');
+            };
+
+            // Kirim Form
+            xhr.send(formData);
         });
     </script>
 </body>
