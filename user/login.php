@@ -64,5 +64,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </form>
     
     <p>Belum punya akun? <a href="registrasi.php">Daftar di sini</a></p>
+    <p>Lupa Password? <a href="lupaPassword.php">Klik di sini</a></p>
 </body>
 </html>

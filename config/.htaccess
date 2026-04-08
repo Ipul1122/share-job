@@ -1,0 +1,3 @@
+# Memblokir akses ke semua file di folder ini
+Order Deny,Allow
+Deny from all
