@@ -11,9 +11,17 @@ if (empty($token)) {
 
 // Cek validitas token
 $token = mysqli_real_escape_string($conn, $token);
-$query = mysqli_query($conn, "SELECT * FROM users WHERE reset_token = '$token' AND reset_expiry > NOW()");
+$sql = "SELECT * FROM users WHERE reset_token = '$token'";
+$query = mysqli_query($conn, $sql);
 $user = mysqli_fetch_assoc($query);
 
+if (!$user) {
+    die("Error: Token tidak ditemukan di database. Pastikan panjang kolom cukup.");
+}
+
+if (strtotime($user['reset_expiry']) < time()) {
+    die("Error: Token sudah kedaluwarsa. Waktu sekarang: " . date("Y-m-d H:i:s") . " | Expiry: " . $user['reset_expiry']);
+}
 if (!$user) {
     die("Token tidak valid atau sudah kedaluwarsa. Silakan minta link baru.");
 }
