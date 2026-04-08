@@ -5,7 +5,6 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 require '../vendor/autoload.php';
 
-// Pastikan user berasal dari halaman registrasi
 if (!isset($_SESSION['temp_email'])) {
     header("Location: registrasi.php");
     exit();
@@ -14,6 +13,7 @@ if (!isset($_SESSION['temp_email'])) {
 $email = $_SESSION['temp_email'];
 $msg = '';
 $msg_type = '';
+$success = false;
 
 // Logika Validasi OTP
 if (isset($_POST['verify_otp'])) {
@@ -25,19 +25,16 @@ if (isset($_POST['verify_otp'])) {
     if ($row['otp'] == $otp_input) {
         $current_time = date("Y-m-d H:i:s");
         if ($current_time <= $row['otp_expiry']) {
-            // OTP Valid
             mysqli_query($conn, "UPDATE users SET is_verified = 1, otp = NULL, otp_expiry = NULL WHERE email = '$email'");
-            unset($_SESSION['temp_email']); // Bersihkan session sementara
-            
-            echo "<script>alert('Registrasi berhasil! Silakan login.'); window.location.href='login.php';</script>";
-            exit();
+            unset($_SESSION['temp_email']);
+            $success = true;
         } else {
             $msg = "Kode OTP sudah kedaluwarsa. Silakan minta kode baru.";
-            $msg_type = "red";
+            $msg_type = "error";
         }
     } else {
         $msg = "Kode OTP salah!";
-        $msg_type = "red";
+        $msg_type = "error";
     }
 }
 
@@ -61,39 +58,80 @@ if (isset($_POST['resend_otp'])) {
         $mail->setFrom('msyaifulloh2024@gmail.com', 'share doc');
         $mail->addAddress($email);
         $mail->isHTML(true);
-        $mail->Subject = 'Kirim Ulang: Kode OTP Registrasi - share doc';
-        $mail->Body    = "Ini adalah kode OTP baru kamu: <b>$new_otp</b>.<br>Berlaku selama 15 menit.";
+        $mail->Subject = 'Kirim Ulang: Kode OTP Registrasi - ShareDoc';
+        $mail->Body    = "Ini adalah kode OTP baru kamu: <b style='font-size:20px; color:#1e40af;'>$new_otp</b>.<br>Berlaku selama 15 minutes.";
 
         $mail->send();
         $msg = "OTP baru telah dikirim ke email kamu.";
-        $msg_type = "green";
+        $msg_type = "success";
     } catch (Exception $e) {
         $msg = "Gagal mengirim ulang OTP.";
-        $msg_type = "red";
+        $msg_type = "error";
     }
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="id">
-<head><title>Verifikasi OTP</title></head>
-<body>
-    <h2>Verifikasi Email</h2>
-    <p>Kode OTP telah dikirim ke: <strong><?php echo htmlspecialchars($email); ?></strong></p>
-    
-    <?php if($msg) echo "<p style='color:$msg_type;'>$msg</p>"; ?>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifikasi OTP - ShareDoc</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen relative font-sans antialiased p-4">
 
-    <form action="" method="POST">
-        <label>Masukkan 6 Digit OTP:</label><br>
-        <input type="text" name="otp" maxlength="6" required><br><br>
-        <button type="submit" name="verify_otp">Verifikasi</button>
-    </form>
-    
-    <br><hr><br>
+    <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
+    <div class="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-blue-800 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
 
-    <p>Tidak menerima email?</p>
-    <form action="" method="POST">
-        <button type="submit" name="resend_otp">Kirim Ulang OTP</button>
-    </form>
+    <?php if($success): ?>
+        <script>
+            Swal.fire({
+                icon: 'success', title: 'Registrasi Berhasil!', text: 'Akun Anda telah terverifikasi. Silakan login.',
+                confirmButtonColor: '#1e40af'
+            }).then(() => { window.location.href = 'login.php'; });
+        </script>
+    <?php elseif($msg): ?>
+        <script>
+            Swal.fire({
+                icon: '<?= $msg_type ?>', title: '<?= $msg_type == "success" ? "Berhasil" : "Oops!" ?>', text: '<?= $msg ?>',
+                confirmButtonColor: '#1e40af'
+            });
+        </script>
+    <?php endif; ?>
+
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 relative z-10 border border-gray-100 text-center">
+        <div class="mx-auto bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mb-6 text-blue-600">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+        </div>
+        
+        <h2 class="text-2xl font-extrabold text-gray-800 mb-2">Verifikasi Email</h2>
+        <p class="text-gray-500 text-sm mb-6">
+            Kami telah mengirimkan 6-digit kode OTP ke:<br>
+            <strong class="text-blue-800"><?php echo htmlspecialchars($email); ?></strong>
+        </p>
+
+        <form action="" method="POST" class="space-y-6">
+            <div>
+                <input type="text" name="otp" maxlength="6" required placeholder="••••••" autocomplete="off"
+                       class="w-full text-center text-3xl font-bold tracking-[1em] py-4 border-2 border-gray-300 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-600 outline-none transition text-gray-800">
+            </div>
+            
+            <button type="submit" name="verify_otp" class="w-full bg-blue-800 hover:bg-blue-900 text-white font-bold py-4 px-4 rounded-xl shadow-lg transform active:scale-95 transition duration-200">
+                Verifikasi OTP
+            </button>
+        </form>
+        
+        <div class="mt-8 border-t border-gray-200 pt-6">
+            <p class="text-sm text-gray-500 mb-2">Tidak menerima email?</p>
+            <form action="" method="POST">
+                <button type="submit" name="resend_otp" class="text-blue-600 font-semibold hover:text-blue-800 hover:underline transition">
+                    Kirim Ulang Kode OTP
+                </button>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>

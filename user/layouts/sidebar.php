@@ -1,5 +1,4 @@
 <?php
-// Mendapatkan nama file saat ini untuk memberikan efek "active" pada menu
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 
@@ -12,7 +11,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
             🏠 Dashboard
         </a>
         <a href="shareDoc.php" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-600 <?php echo $current_page == 'shareDoc.php' ? 'bg-blue-600 font-semibold shadow' : ''; ?>">
-            📤 Share Document
+            📤 Kirim Dokumen
+        </a>
+        <a href="receiveDoc.php" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-600 <?php echo $current_page == 'receiveDoc.php' ? 'bg-blue-600 font-semibold shadow' : ''; ?>">
+            📥 Dokumen Diterima
+        </a>
+        <a href="trackShare.php" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-blue-600 <?php echo $current_page == 'trackShare.php' ? 'bg-blue-600 font-semibold shadow' : ''; ?>">
+            ⏱️ Riwayat Kiriman
         </a>
     </nav>
     <div class="p-4 border-t border-blue-700">
@@ -33,12 +38,13 @@ $current_page = basename($_SERVER['PHP_SELF']);
 
 <div id="mobileMenu" class="md:hidden hidden bg-blue-700 text-white flex-col shadow-lg">
     <a href="dashboard.php" class="block py-3 px-5 border-b border-blue-600 hover:bg-blue-500 <?php echo $current_page == 'dashboard.php' ? 'bg-blue-600' : ''; ?>">🏠 Dashboard</a>
-    <a href="shareDoc.php" class="block py-3 px-5 border-b border-blue-600 hover:bg-blue-500 <?php echo $current_page == 'shareDoc.php' ? 'bg-blue-600' : ''; ?>">📤 Share Document</a>
+    <a href="shareDoc.php" class="block py-3 px-5 border-b border-blue-600 hover:bg-blue-500 <?php echo $current_page == 'shareDoc.php' ? 'bg-blue-600' : ''; ?>">📤 Kirim Dokumen</a>
+    <a href="receiveDoc.php" class="block py-3 px-5 border-b border-blue-600 hover:bg-blue-500 <?php echo $current_page == 'receiveDoc.php' ? 'bg-blue-600' : ''; ?>">📥 Dokumen Diterima</a>
+    <a href="trackShare.php" class="block py-3 px-5 border-b border-blue-600 hover:bg-blue-500 <?php echo $current_page == 'trackShare.php' ? 'bg-blue-600' : ''; ?>">⏱️ Riwayat Kiriman</a>
     <a href="logout.php" class="block py-3 px-5 bg-red-600 hover:bg-red-700">Logout</a>
 </div>
 
 <script>
-    // Script sederhana untuk toggle menu mobile
     document.getElementById('mobileMenuBtn').addEventListener('click', function() {
         const menu = document.getElementById('mobileMenu');
         menu.classList.toggle('hidden');
